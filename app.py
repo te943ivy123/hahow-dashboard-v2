@@ -85,14 +85,33 @@ with tabs[0]:
         note=f'主圖顯示至 P99（{ss["p99"]:,.0f} TWD），原始最大值仍保留為 {ss["max"]:,.0f} TWD。視覺化限制範圍不等於刪除資料。'
         analysis='價格存在高度離群值；在沒有外部證據確認資料錯誤的情況下，本專題保留原始值，並使用既有 price_outlier_flag 與 P99 協助閱讀主要價格區間。0 元價格也保留，不直接視為缺值。'
     elif metric=='學生數':
-        show=s.dropna(); note='排除缺值；X 軸使用 log 尺度呈現。'; analysis='學生人數呈長尾分布，少數熱門課程學生數遠高於一般課程，因此採對數尺度協助觀察主要資料分布；這只改變圖的尺度，不改變原始學生數。'
+        # student_count 原始值完全不修改；log1p 只建立暫時的繪圖資料。
+        student_valid=s.dropna()
+        show=np.log1p(student_valid)
+        note='學生數呈現明顯長尾分布，少數熱門課程學生數較高，因此本圖以 log1p(student_count) 僅供視覺化呈現，以提升一般課程分布的辨識度；原始 student_count 資料未經修改。'
+        analysis='學生人數呈明顯長尾分布。原本即使只把 X 軸切成 log scale，Histogram 的分箱仍可能讓大量一般課程擠在左側；因此本圖改以 log1p(student_count) 作為「僅供繪圖」的暫時值，0 值與極高學生數課程都保留，A／B／C 正式資料與模型結果完全不受影響。'
     elif metric=='課程時長':
         show=s[(s.notna())&(s<=ss['p99'])]; note=f'排除缺值；主圖顯示至 P99（{ss["p99"]:,.1f} 分鐘），原始最大值仍保留於上方摘要。'; analysis='課程時長也存在長尾，因此主圖以 P99 協助閱讀主要區間；缺少時長的課程不自行推估。'
     else:
         show=s.dropna(); note='排除缺值；缺值不視為 0。'; analysis='評分分析只使用具有 rating_value 的課程；「沒有評分資料」不等於「評分為 0」，因此不做 0 值填補。'
-    fig=px.histogram(x=show,nbins=40,labels={'x':label,'y':'課程數'},title=f'{metric}分布')
-    if metric=='學生數': fig.update_xaxes(type='log',title='學生數（log scale）')
+    if metric=='學生數':
+        fig=px.histogram(x=show,nbins=40,labels={'x':'學生數','y':'課程數'},title='學生數分布（對數視覺化）')
+        # X 軸內部使用 log1p 值，但刻度顯示回原始學生數，讓讀者不必解讀 log 數字。
+        raw_ticks=np.array([0,10,30,100,300,1000,3000,10000,30000],dtype=float)
+        raw_ticks=raw_ticks[raw_ticks <= max(float(student_valid.max()), 0)]
+        if len(raw_ticks)==0 or raw_ticks[-1] < float(student_valid.max()):
+            raw_ticks=np.append(raw_ticks,float(student_valid.max()))
+        fig.update_xaxes(tickmode='array',tickvals=np.log1p(raw_ticks),ticktext=[f'{int(v):,}' for v in raw_ticks],title='學生數（刻度顯示原始人數；圖表採對數視覺化）')
+    else:
+        fig=px.histogram(x=show,nbins=40,labels={'x':label,'y':'課程數'},title=f'{metric}分布')
     st.plotly_chart(fig,use_container_width=True); st.caption(note); st.info('**分析重點：** '+analysis)
+    if metric=='學生數':
+        qa=pd.DataFrame({
+            'QA 指標':['總筆數','Missing 數','0 的筆數','Min','Median','P90','P95','P99','Max'],
+            '數值':[len(s),int(s.isna().sum()),int((s==0).sum()),student_valid.min(),student_valid.median(),student_valid.quantile(.90),student_valid.quantile(.95),student_valid.quantile(.99),student_valid.max()]
+        })
+        with st.expander('學生數長尾分布 QA（僅供確認，不修改資料）'):
+            st.dataframe(qa,use_container_width=True,hide_index=True)
 
 with tabs[1]:
     st.header('2. 資料品質如何影響後續分析')
