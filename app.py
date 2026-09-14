@@ -213,7 +213,7 @@ with tabs[6]:
     htxt=f'人文類 Recall 為 **{hum.iloc[0]["recall"]:.2f}**；' if not hum.empty else ''
     st.markdown(f'- {htxt}模型誤判較集中於語意相近的類別，且正式 error cases 共 **{len(errors):,} 筆**。\n- 課程本身可能跨領域，加上類別樣本數不均，模型結果不應被解讀為絕對正確分類。Feature coefficient 也只代表模型內部統計權重。')
     st.subheader('5. 未來應用')
-    st.success('清理後的課程資料與模型結果**可進一步延伸**至 LINE Bot，規劃課程搜尋、課程追蹤、價格異動通知，以及根據使用者追蹤課程建立內容式推薦功能。推薦功能若尚未完成，本網站不宣稱已正式上線。')
+    st.success('目前 LINE Bot 已完成課程搜尋、課程追蹤與價格異動通知等功能。未來可持續優化免費雲端服務的啟動延遲、建立課程資料定期更新機制，並加入更進階的個人化推薦功能，甚至擴充至其他線上課程平台，提升系統的即時性、推薦精準度與應用範圍。')
     with st.expander(f'補充：查看 {len(multi):,} 筆跨分類課程（不納入目前單標籤 ML）'):
         showcols=[c for c in ['title','source_categories_zh','category_count'] if c in multi.columns]; st.dataframe(multi[showcols],use_container_width=True,hide_index=True)
 
